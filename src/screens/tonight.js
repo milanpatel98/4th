@@ -16,14 +16,14 @@ export function mountTonight({ view, setDock }, { date, open } = {}) {
 
   const title = h('h1.h1', dayTitle(day))
   const stepper = h('div.stepper', { 'aria-label': 'Change day' },
+    day !== today && h('button.day', { onclick: () => go(today), 'aria-label': 'Back to today' }, 'Today'),
     h('button', { 'aria-label': 'Previous day', onclick: () => go(shiftDate(day, -1)) }, icons.chevronLeft()),
-    h('button.day', { onclick: () => go(today), disabled: day === today, 'aria-label': day === today ? 'Today' : 'Back to today' }, day === today ? 'Today' : shortDate(day)),
     h('button', { 'aria-label': 'Next day', onclick: () => go(shiftDate(day, 1)) }, icons.chevronRight()),
   )
   const list = h('div.games', loader())
   view.append(
-    h('header.top', wordmark(), stepper),
-    h('div', { style: { marginBottom: '14px' } }, title),
+    h('header.top', wordmark()),
+    h('div.day-row', title, stepper),
     list,
   )
 
