@@ -1,0 +1,29 @@
+name: Screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      day: { description: "YYYYMMDD (blank = today)", required: false }
+      game: { description: "ESPN game id (blank = first game)", required: false }
+
+permissions:
+  contents: write
+
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
+      - run: mkdir -p out && node scripts/shots.mjs
+        env: { DAY: "${{ inputs.day }}", GAME: "${{ inputs.game }}" }
+      - name: Put the images on the shots branch
+        run: |
+          cd out
+          git init -q -b shots
+          git config user.name "Milan Patel"
+          git config user.email "82750336+milanpatel98@users.noreply.github.com"
+          git add -A && git commit -qm "Screenshots"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" shots
