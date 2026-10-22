@@ -72,7 +72,8 @@ button:focus:not(:focus-visible) { outline: none; }
 }
 .stepper button:hover { color: var(--ink); background: var(--surface); }
 .stepper svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.stepper .today { width: auto; padding: 0 10px; font-size: 13px; font-weight: 600; }
+.stepper .day { width: auto; min-width: 72px; padding: 0 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.stepper .day[disabled] { cursor: default; background: none; }
 
 .h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; }
 .sub { font-size: 13px; color: var(--ink-2); font-weight: 500; }
@@ -101,9 +102,9 @@ button:focus:not(:focus-visible) { outline: none; }
 .card {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr 96px;
   align-items: center;
-  gap: 12px;
+  gap: 18px;
   width: 100%;
   text-align: left;
   padding: 14px 16px;
@@ -114,7 +115,7 @@ button:focus:not(:focus-visible) { outline: none; }
   transition: border-color 160ms ease;
 }
 .card:hover { border-color: var(--line); }
-.card .court-bg { position: absolute; top: 0; bottom: 0; right: 0; width: 100%; opacity: 0.55; pointer-events: none; }
+.card .court-bg { position: absolute; top: 0; bottom: 0; right: 0; width: 118px; opacity: 0.55; pointer-events: none; }
 .card .court-bg svg { height: 100%; width: 100%; }
 .card.hot { border-color: var(--orange); }
 .card.hot:hover { border-color: var(--orange); }
@@ -131,7 +132,7 @@ button:focus:not(:focus-visible) { outline: none; }
 .card.hot .status { color: var(--orange); }
 .card .live-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .card.in:not(.hot) .status { color: var(--ink); }
-.card .side { display: grid; justify-items: end; gap: 2px; min-width: 56px; padding-left: 6px; }
+.card .side { display: grid; justify-items: center; gap: 2px; }
 .card .side .pct { font-size: 22px; font-weight: 700; font-stretch: 92%; font-variant-numeric: tabular-nums; }
 .card .side .lbl { font-size: 11px; color: var(--ink-3); font-weight: 600; }
 .card .side.dim .pct { color: var(--ink-3); }

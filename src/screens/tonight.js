@@ -4,7 +4,7 @@ import { fullCourt } from '../ui/court.js'
 import { icons } from '../ui/icons.js'
 import { loader } from '../ui/loader.js'
 import { getDay, watch } from '../data.js'
-import { todayStr, shiftDate, isValidDate, dayTitle, isCrunch } from '../util.js'
+import { todayStr, shiftDate, isValidDate, dayTitle, isCrunch, shortDate } from '../util.js'
 
 const wordmark = () => h('img.wordmark', { src: `${import.meta.env.BASE_URL}wordmark.png`, alt: '4TH', width: 1215, height: 413 })
 
@@ -16,7 +16,7 @@ export function mountTonight({ view, setDock }, { date, open } = {}) {
   const title = h('h1.h1', dayTitle(day))
   const stepper = h('div.stepper', { 'aria-label': 'Change day' },
     h('button', { 'aria-label': 'Previous day', onclick: () => go(shiftDate(day, -1)) }, icons.chevronLeft()),
-    day !== today && h('button.today', { onclick: () => go(today) }, 'Today'),
+    h('button.day', { onclick: () => go(today), disabled: day === today, 'aria-label': day === today ? 'Today' : 'Back to today' }, day === today ? 'Today' : shortDate(day)),
     h('button', { 'aria-label': 'Next day', onclick: () => go(shiftDate(day, 1)) }, icons.chevronRight()),
   )
   const list = h('div.games', loader())

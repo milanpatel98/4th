@@ -7,7 +7,7 @@ const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)')
 
 function statusText(g) {
   if (g.state === 'pre') return tipTime(g.start)
-  if (g.state === 'post') return g.detail || 'Final'
+  if (g.state === 'post') return `${g.detail || 'Final'} · started ${tipTime(g.start)}`
   if (g.detail) return g.detail
   return `${periodWord(g.period)} ${g.clock}`
 }
