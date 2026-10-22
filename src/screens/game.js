@@ -1,5 +1,6 @@
 import { h, s, clear, setText, pct, signedPct } from '../ui/dom.js'
 import { logo } from '../ui/logo.js'
+import { endedWord } from '../ui/card.js'
 import { fullCourt, shotDot } from '../ui/court.js'
 import { wpChart } from '../ui/wpchart.js'
 import { icons } from '../ui/icons.js'
@@ -148,12 +149,12 @@ function build(detail) {
     const hot = isCrunch(g)
     board.classList.toggle('hot', hot)
     board.classList.toggle('done', g.state === 'post')
-    const key = g.state === 'pre' ? `pre` : g.state === 'post' ? `post:${g.detail}` : `in:${g.period}:${g.clock}`
+    const key = g.state === 'pre' ? `pre` : g.state === 'post' ? `post:${g.detail}:${g.endedAt || ""}` : `in:${g.period}:${g.clock}`
     if (mid.dataset.key === key) return
     mid.dataset.key = key
     mid.replaceChildren()
     if (g.state === 'pre') mid.append(h('span.tip', tipTime(g.start)), h('span.tipsub', 'tip-off'))
-    else if (g.state === 'post') mid.append(h('span.period', g.detail || 'Final'))
+    else if (g.state === 'post') mid.append(h('span.period', endedWord(g)), g.endedAt ? h('span.tipsub', tipTime(g.endedAt)) : '')
     else mid.append(h('span.period', periodLabel(g.period)), h('span.clock', g.clock))
   }
 

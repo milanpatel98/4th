@@ -196,6 +196,8 @@ export async function getGame(id) {
     prevMargin = margin; prevBall = ball
   }
   if (game.state === 'post' && plays.length) plays[plays.length - 1].wp = game.wp
+  const lastClock = [...(s.plays || [])].reverse().find((p) => p.wallclock)?.wallclock
+  if (game.state === 'post' && lastClock) game.endedAt = lastClock
   if (game.state === 'in' && plays.length) game.wp = plays[plays.length - 1].wp
 
   const swings = []

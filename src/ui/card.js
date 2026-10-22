@@ -5,9 +5,14 @@ import { tipTime, periodWord, isCrunch } from '../util.js'
 
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+export function endedWord(g) {
+  const ot = /OT/.exec(g.detail || '')
+  return ot ? `Ended in ${(g.detail.split('/')[1] || 'OT')}` : 'Ended'
+}
+
 function statusText(g) {
   if (g.state === 'pre') return tipTime(g.start)
-  if (g.state === 'post') return `${g.detail || 'Final'} · started ${tipTime(g.start)}`
+  if (g.state === 'post') return `${endedWord(g)} · started ${tipTime(g.start)}`
   if (g.detail) return g.detail
   return `${periodWord(g.period)} ${g.clock}`
 }
