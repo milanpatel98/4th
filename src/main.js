@@ -5,6 +5,8 @@ import { mountGame } from './screens/game.js'
 import { mountSeason } from './screens/season.js'
 import { mountLive } from './screens/live.js'
 import { icons } from './ui/icons.js'
+import { preloadLogos } from './ui/logo.js'
+import { TEAMS } from './teams.js'
 
 const app = document.getElementById('app')
 const view = h('main.shell', { id: 'view' })
@@ -59,3 +61,5 @@ function route() {
 
 window.addEventListener('hashchange', route)
 route()
+
+preloadLogos(Object.values(TEAMS).map((t) => t.id))
