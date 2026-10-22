@@ -56,7 +56,7 @@ export function mountTonight({ view, setDock }, { date, open } = {}) {
     // reconcile cards by id, in feed order, without re-creating existing ones
     const seen = new Set()
     let cursor = list.firstElementChild
-    if (cursor?.classList.contains('loader')) { clear(list); cursor = null }
+    if (cursor?.classList.contains('loader') || cursor?.classList.contains('empty')) { clear(list); cursor = null }
     for (const g of games) {
       seen.add(g.id)
       let c = cards.get(g.id)

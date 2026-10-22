@@ -17,6 +17,7 @@ export function watch(fetcher, onData, { every = 10000, shouldContinue = () => t
   let inflight = false
 
   let last = null
+  let failed = false
   async function tick() {
     if (stopped || inflight) return
     inflight = true
@@ -24,15 +25,19 @@ export function watch(fetcher, onData, { every = 10000, shouldContinue = () => t
       const data = await fetcher()
       if (stopped) return
       last = data
+      failed = false
       onData(data)
       if (!shouldContinue(data)) return
     } catch (e) {
-      // keep whatever is on screen; try again next tick
+      // keep whatever is on screen; try again soon
+      failed = true
       if (onError) onError(e, last)
     } finally {
       inflight = false
     }
-    if (!stopped) timer = setTimeout(tick, document.hidden ? delay(last) * 3 : delay(last))
+    // after a failure, retry every 5 s until the feed answers again
+    const wait = failed ? 5000 : delay(last)
+    if (!stopped) timer = setTimeout(tick, document.hidden ? wait * 3 : wait)
   }
 
   const onVis = () => {

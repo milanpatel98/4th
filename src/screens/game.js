@@ -25,6 +25,7 @@ export function mountGame({ view, setDock }, { id, back }) {
   function render(d) {
     if (!ui) {
       view.querySelector('.loader')?.remove()
+      view.querySelector(':scope > .empty')?.remove()
       ui = build(d)
       view.append(ui.el)
     }
