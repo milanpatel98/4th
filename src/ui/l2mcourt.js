@@ -94,7 +94,7 @@ export function l2mPins(detail, { live = false } = {}) {
     const bx = hurtHome ? 41.75 : -41.75
     pins.push({
       kind: 'call', x: hurtHome ? bx + dx : bx - dx, y: dy, weight: 1 + Math.abs(c.cost),
-      text: `${callWord(c)} −${Math.round(Math.abs(c.cost) * 100)}%`,
+      text: `−${Math.round(Math.abs(c.cost) * 100)}%`,
     })
   })
 
