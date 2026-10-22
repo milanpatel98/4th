@@ -239,11 +239,11 @@ function build(detail) {
         row.append(btn, h('div.comment', c.comment))
         calls.append(row)
       }
-      calls.append(h('div.source', 'Wrong calls from the NBA\'s Last Two Minute report. Cost to the team wronged.'))
+      calls.append(h('div.source', 'NBA Last Two Minute report'))
     } else if (d.l2m) {
-      l2mNote.textContent = 'The referees\' report found no wrong calls.'
+      l2mNote.textContent = 'Refs got every call right.'
     } else {
-      l2mNote.textContent = 'No referee report for this game yet. The NBA reviews close games a day or two later.'
+      l2mNote.textContent = ''
     }
   }
 
