@@ -92,7 +92,7 @@ function build(detail) {
     if (on) {
       const prePanel = h('div.panel.pre-panel',
         h('div.court-wrap', fullCourt()),
-        g.closeFinish == null ? null : h('div.pre-line', h('span.pct.num', pct(g.closeFinish)), h('span', 'chance of a close finish')),
+        g.wp == null ? null : h('div.pre-line', h('span.pct.num', pct(Math.max(g.wp, 1 - g.wp))), h('span', `${(g.wp >= 0.5 ? g.home : g.away).abbr} to win`)),
         h('div.pre-note', `${g.away.record ? `${g.away.abbr} ${g.away.record}` : ''}${g.away.record && g.home.record ? '  ·  ' : ''}${g.home.record ? `${g.home.abbr} ${g.home.record}` : ''}`),
       )
       body.replaceWith(prePanel)

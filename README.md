@@ -6,7 +6,7 @@
 
 **[Open 4TH](https://milanpatel98.github.io/4th/)**. Works on a phone or a computer, with no sign-in and nothing to install.
 
-- **Tonight:** every game with live scores. Close games late in the 4th get an orange edge. Before tip-off, each card shows the chance of a close finish.
+- **Tonight:** every game with live scores and the favourite's chance to win, updated every play. Close games late in the 4th get an orange edge.
 - **A game:** every shot on a full court, the win-chance line, and the plays that swung it. After the final, it also shows who closed the game, how dramatic it was, and the calls the NBA later ruled wrong, with what each one cost.
 - **Season:** the games a wrong call may have decided, and the players who added the most wins in 4th quarters.
 
@@ -37,7 +37,7 @@ r = √(time left / 48 min)
 
 ![Predicted vs actual](docs/calibration.png)
 
-**Close finish** (within 5 points with 2 minutes left) is predicted from the rating gap alone. It is honest but weak: every game lands between 15% and 36%, against a base rate of 29%, and it barely beats always guessing 29% (Brier 0.201 vs 0.205). Who wins is far easier to predict than how close it will be.
+**Close finish** (within 5 points with 2 minutes left) was also tried, from the rating gap alone, and left out of the app because it is too weak to be useful: every game lands between 15% and 36%, against a base rate of 29%, and it barely beats always guessing 29% (Brier 0.201 vs 0.205). Who wins is far easier to predict than how close it will be.
 
 ## Who closed it
 

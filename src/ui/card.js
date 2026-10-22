@@ -46,17 +46,17 @@ export function gameCard(game, { href }) {
     setText(span, txt)
     el.setAttribute('aria-label', `${g.away.name} at ${g.home.name}, ${txt}`)
 
-    // right side: close-finish chance before/during, nothing loud after
-    const key = g.state === 'post' ? 'post' : g.closeFinish == null ? 'none' : 'pct'
+    // right side: the favourite and their chance to win (before and during), nothing after
+    const key = g.state === 'post' || g.wp == null ? 'none' : 'pct'
     if (side.dataset.key !== key) {
       side.dataset.key = key
       side.replaceChildren()
-      side.classList.remove('dim')
-      if (key === 'pct') side.append(h('span.pct.num'), h('span.lbl', 'close finish'))
+      if (key === 'pct') side.append(h('span.pct.num'), h('span.lbl'))
     }
     if (key === 'pct') {
-      setText(side.querySelector('.pct'), pct(g.closeFinish))
-      side.classList.toggle('dim', g.closeFinish < 0.3)
+      const fav = g.wp >= 0.5 ? g.home : g.away
+      setText(side.querySelector('.pct'), pct(Math.max(g.wp, 1 - g.wp)))
+      setText(side.querySelector('.lbl'), `${fav.abbr} to win`)
     }
     prev = g
   }
