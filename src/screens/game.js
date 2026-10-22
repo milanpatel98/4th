@@ -16,7 +16,7 @@ export function mountGame({ view, setDock }, { id, back }) {
   setDock('tonight')
   const backHref = back && back !== todayStr() ? `#/d/${back}` : '#/'
   view.append(
-    h('header.top', h('a.back', { href: backHref }, icons.chevronLeft(), 'Back')),
+    h('header.top', h('a.back', { href: backHref, 'aria-label': 'Back' }, icons.chevronLeft())),
     loader(),
   )
 
