@@ -1,0 +1,13 @@
+{
+  "name": "4TH",
+  "short_name": "4TH",
+  "description": "NBA scores, win chance and what decided the game.",
+  "start_url": "/4th/",
+  "scope": "/4th/",
+  "display": "standalone",
+  "background_color": "#0d0d0e",
+  "theme_color": "#0d0d0e",
+  "icons": [
+    { "src": "/4th/icon.png", "sizes": "661x638", "type": "image/png", "purpose": "any" }
+  ]
+}

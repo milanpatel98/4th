@@ -1,0 +1,75 @@
+{
+ "train": "2021-22 to 2024-25",
+ "test": "2025-26",
+ "test_games": 1230,
+ "logloss": 0.441,
+ "brier": 0.147,
+ "calibration": [
+  {
+   "predicted": 0.035,
+   "actual": 0.018,
+   "n": 47137
+  },
+  {
+   "predicted": 0.151,
+   "actual": 0.153,
+   "n": 28382
+  },
+  {
+   "predicted": 0.25,
+   "actual": 0.262,
+   "n": 31921
+  },
+  {
+   "predicted": 0.351,
+   "actual": 0.364,
+   "n": 34593
+  },
+  {
+   "predicted": 0.45,
+   "actual": 0.473,
+   "n": 36321
+  },
+  {
+   "predicted": 0.55,
+   "actual": 0.574,
+   "n": 37212
+  },
+  {
+   "predicted": 0.65,
+   "actual": 0.661,
+   "n": 38485
+  },
+  {
+   "predicted": 0.752,
+   "actual": 0.753,
+   "n": 42023
+  },
+  {
+   "predicted": 0.85,
+   "actual": 0.851,
+   "n": 44686
+  },
+  {
+   "predicted": 0.966,
+   "actual": 0.976,
+   "n": 69392
+  }
+ ],
+ "last5_logloss": 0.1678,
+ "pick_accuracy_at_half": 0.769,
+ "close_finish": {
+  "base_rate": 0.286,
+  "brier": 0.2014,
+  "brier_base_rate": 0.2046,
+  "range": [
+   0.151,
+   0.361
+  ]
+ },
+ "referees_2024_25": {
+  "games_with_report": 211,
+  "wrong_calls": 305,
+  "flipped": 14
+ }
+}
