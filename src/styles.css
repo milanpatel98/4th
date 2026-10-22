@@ -133,6 +133,7 @@ button:focus:not(:focus-visible) { outline: none; }
 .card .live-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .card.in:not(.hot) .status { color: var(--ink); }
 .card .side { display: grid; justify-items: center; gap: 2px; }
+.card .side > * { background: var(--bg); padding: 0 5px; border-radius: 4px; box-shadow: 0 0 6px 4px var(--bg); }
 .card .side .pct { font-size: 22px; font-weight: 700; font-stretch: 92%; font-variant-numeric: tabular-nums; }
 .card .side .lbl { font-size: 11px; color: var(--ink-3); font-weight: 600; }
 .card .side.dim .pct { color: var(--ink-3); }
