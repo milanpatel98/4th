@@ -11,24 +11,28 @@ export { getDay, getGame, getSeason } from './espn.js'
 // Poll a fetcher while the page is visible. Calls onData with each fresh result.
 // `shouldContinue(data)` lets the caller stop polling once nothing is live.
 export function watch(fetcher, onData, { every = 10000, shouldContinue = () => true, onError } = {}) {
+  const delay = (data) => (typeof every === 'function' ? every(data) : every)
   let timer = null
   let stopped = false
   let inflight = false
 
+  let last = null
   async function tick() {
     if (stopped || inflight) return
     inflight = true
     try {
       const data = await fetcher()
       if (stopped) return
+      last = data
       onData(data)
       if (!shouldContinue(data)) return
     } catch (e) {
-      if (onError) onError(e)
+      // keep whatever is on screen; try again next tick
+      if (onError) onError(e, last)
     } finally {
       inflight = false
     }
-    if (!stopped) timer = setTimeout(tick, document.hidden ? every * 3 : every)
+    if (!stopped) timer = setTimeout(tick, document.hidden ? delay(last) * 3 : delay(last))
   }
 
   const onVis = () => {

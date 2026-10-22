@@ -16,7 +16,22 @@ export function mountSeason({ view, setDock }) {
 
   getSeason().then((season) => {
     if (!alive) return
-    body.replaceWith(render(season))
+    const list = season.seasons?.length ? season.seasons : [season]
+    if (list.length < 2) { body.replaceWith(render(season)); return }
+    // switch between this season (grows every night) and last season
+    let current = h('div')
+    const buttons = list.map((s, i) => h('button', { 'aria-pressed': String(i === 0), onclick: () => pick(i) }, i === 0 ? 'This season' : s.season))
+    const seg = h('div.seg.season-seg', { role: 'group', 'aria-label': 'Season' }, buttons)
+    function pick(i) {
+      buttons.forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)))
+      const s = list[i]
+      const next = render({ ...s, clutchSeason: s.season })
+      current.replaceWith(next)
+      current = next
+    }
+    view.querySelector('header.top').append(seg)
+    body.replaceWith(current)
+    pick(0)
   }).catch(() => {
     if (alive) body.textContent = 'Could not load the season.'
   })
@@ -45,7 +60,7 @@ function render(season) {
 
   const flippedSection = h('section.section',
     h('div.hero-n',
-      h('span.n.num', flipped.count),
+      h('span.n.num', String(flipped.count)),
       h('span.l', `games flipped by a wrong call, ${season.season}`),
     ),
     h('div.section-h', { style: { marginTop: '22px' } }, h('h2', 'The games'), h('span.sub', 'tap to open')),

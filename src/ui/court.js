@@ -42,12 +42,9 @@ export function fullCourt({ stroke = 'var(--line)', width = 0.5, id } = {}) {
 
 // The faint half-court that sits inside a game card. Right half, basket on the right.
 export function cardCourt() {
-  const svg = s('svg', { viewBox: '0 -25.5 47.5 51', preserveAspectRatio: 'xMaxYMid meet', 'aria-hidden': 'true' })
-  const g = s('g', { fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.45 })
-  g.append(s('line', { x1: 0, y1: -25.5, x2: 0, y2: 25.5 }))
-  g.append(s('circle', { cx: 0, cy: 0, r: 6 }))
-  g.append(s('line', { x1: 0, y1: -25, x2: 47, y2: -25 }))
-  g.append(s('line', { x1: 0, y1: 25, x2: 47, y2: 25 }))
+  // the basket end only: three-point arc, the paint, the hoop
+  const svg = s('svg', { viewBox: '16 -25.5 31.5 51', preserveAspectRatio: 'xMaxYMid meet', 'aria-hidden': 'true' })
+  const g = s('g', { fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.5 })
   g.append(halfLines(1))
   svg.append(g)
   return svg

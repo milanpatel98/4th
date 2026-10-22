@@ -46,3 +46,29 @@ export function isCrunch(g) {
 }
 
 export const isLastTwo = (g) => g.state === 'in' && g.period >= 4 && clockSecs(g.clock) <= 120
+
+// Fires `onChange` when the calendar day rolls over while a screen stays open (overnight, backgrounded phone).
+// Checks every minute and whenever the tab comes back.
+export function followDay(onChange) {
+  let day = todayStr()
+  const check = () => { const now = todayStr(); if (now !== day) { day = now; onChange(now) } }
+  const timer = setInterval(check, 60000)
+  document.addEventListener('visibilitychange', check)
+  window.addEventListener('focus', check)
+  window.addEventListener('pageshow', check)
+  return () => {
+    clearInterval(timer)
+    document.removeEventListener('visibilitychange', check)
+    window.removeEventListener('focus', check)
+    window.removeEventListener('pageshow', check)
+  }
+}
+
+// How often a day's list should refresh: fast while anything is live or about to tip off.
+export function dayInterval(games) {
+  const soon = Date.now() + 15 * 60000
+  const busy = games.some((g) => g.state === 'in' || (g.state === 'pre' && new Date(g.start).getTime() <= soon))
+  return busy ? 10000 : 60000
+}
+
+export const remount = () => window.dispatchEvent(new HashChangeEvent('hashchange'))

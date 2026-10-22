@@ -3,12 +3,14 @@ import { logo } from '../ui/logo.js'
 import { endedWord } from '../ui/card.js'
 import { fullCourt, shotDot } from '../ui/court.js'
 import { wpChart } from '../ui/wpchart.js'
+import { l2mCourt, l2mPins, callWord } from '../ui/l2mcourt.js'
 import { icons } from '../ui/icons.js'
 import { loader } from '../ui/loader.js'
 import { getGame, watch } from '../data.js'
-import { tipTime, periodLabel, periodWord, isCrunch, todayStr } from '../util.js'
+import { tipTime, periodLabel, periodWord, isCrunch, isLastTwo, todayStr } from '../util.js'
 
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const lastName = (name = '') => name.split(' ').pop()
 
 export function mountGame({ view, setDock }, { id, back }) {
   setDock('tonight')
@@ -30,8 +32,9 @@ export function mountGame({ view, setDock }, { id, back }) {
     setDock('tonight', { livePip: isCrunch(d.game) })
   }
 
+  // Poll every 10 s while live, every 60 s before tip-off (so pre → live switches in place), stop once ended.
   return watch(() => getGame(id), render, {
-    every: 10000,
+    every: (d) => (d?.game.state === 'in' ? 10000 : 60000),
     shouldContinue: (d) => d.game.state !== 'post',
     onError: () => {
       if (ui) return
@@ -66,45 +69,74 @@ function build(detail) {
     h('div.court-ends', h('span', game.away.abbr), h('span.legend', h('span', h('i.made'), 'made'), h('span', h('i.miss'), 'missed')), h('span', game.home.abbr)),
   )
 
-  // --- win chance ---
+  // --- win chance: home team's line; logos mark which end is whose ---
   const chart = wpChart()
   const wpVal = h('span.val.num')
-  const wpTitle = h('h2')
-  const wpPanel = h('div.panel.wp-wrap', h('div.panel-h', wpTitle, wpVal), chart.svg)
+  const wpPanel = h('div.panel.wp-wrap',
+    h('div.panel-h', h('h2', 'Win chance'), h('span.wp-now', logo(game.home, 'sm'), wpVal)),
+    h('div.wp-plot', chart.svg, h('span.wp-end.top', logo(game.home, 'sm')), h('span.wp-end.bottom', logo(game.away, 'sm'))),
+  )
 
-  // --- swings / after ---
+  // --- swings (live, before the last two minutes) ---
   const swingsList = h('div.plays')
-  const swingsTitle = h('h2', 'Swings')
-  const swingsSub = h('span.sub')
-  const swingsPanel = h('div.panel', h('div.panel-h', swingsTitle, swingsSub), swingsList)
+  const swingsPanel = h('div.panel', h('div.panel-h', h('h2', 'Swings')), swingsList)
 
+  // --- last two minutes: the deciding plays on the court, then the refs ---
+  const l2m = l2mCourt()
+  const l2mTitle = h('h2', 'Last two minutes')
+  const l2mSub = h('span.sub')
+  const l2mRows = h('div.plays')
+  const calls = h('div.calls')
+  const l2mNote = h('div.quiet.l2m-note')
+  const l2mPanel = h('div.panel', h('div.panel-h', l2mTitle, l2mSub), l2m.el, l2mRows, calls, l2mNote)
+
+  // --- after: who closed it, drama ---
   const after = h('div.col')
 
+  // phone order: last two minutes, win chance, who closed it, drama, shots (desktop keeps two columns)
+  shotsPanel.style.setProperty('--o', 4)
+  wpPanel.style.setProperty('--o', 2)
+  swingsPanel.style.setProperty('--o', 3)
+  l2mPanel.style.setProperty('--o', 1)
+  after.style.setProperty('--o', 3)
   const left = h('div.col', shotsPanel)
-  const right = h('div.col', wpPanel, swingsPanel, after)
+  const right = h('div.col', wpPanel, swingsPanel)
   const body = h('div.two', left, right)
   const el = h('div', board, body)
 
-  // before tip-off: just the court and the close-finish chance
-  let preMode = false
-  function setPre(on, g) {
-    if (preMode === on) return
-    preMode = on
-    if (on) {
-      const prePanel = h('div.panel.pre-panel',
+  // before tip-off: just the court and the favourite
+  let mode = null // 'pre' | 'live' | 'late' | 'post'
+  let prePanel = null
+  function setLayout(next) {
+    if (mode === next) return
+    mode = next
+    if (next === 'pre') {
+      const g = detail.game
+      prePanel = h('div.panel.pre-panel',
         h('div.court-wrap', fullCourt()),
         g.wp == null ? null : h('div.pre-line', h('span.pct.num', pct(Math.max(g.wp, 1 - g.wp))), h('span', `${(g.wp >= 0.5 ? g.home : g.away).abbr} to win`)),
-        h('div.pre-note', `${g.away.record ? `${g.away.abbr} ${g.away.record}` : ''}${g.away.record && g.home.record ? '  ·  ' : ''}${g.home.record ? `${g.home.abbr} ${g.home.record}` : ''}`),
+        h('div.pre-note', [g.away, g.home].filter((t) => t.record).map((t) => `${t.abbr} ${t.record}`).join('   ')),
       )
-      body.replaceWith(prePanel)
-      el.prePanel = prePanel
+      if (body.isConnected) body.replaceWith(prePanel)
+      else el.append(prePanel)
+      return
+    }
+    if (prePanel?.isConnected) prePanel.replaceWith(body)
+    else if (!body.isConnected) el.append(body)
+    // live: shots | win chance + swings.  late/post: last two minutes | win chance + closers + drama + shots
+    if (next === 'live') {
+      shotsPanel.style.setProperty('--o', 1)
+      left.replaceChildren(shotsPanel)
+      right.replaceChildren(wpPanel, swingsPanel)
     } else {
-      el.prePanel?.replaceWith(body)
+      shotsPanel.style.setProperty('--o', 4)
+      left.replaceChildren(l2mPanel, shotsPanel)
+      right.replaceChildren(wpPanel, next === 'late' ? swingsPanel : after)
     }
   }
 
   let drawn = new Set()
-  let lastDetail = null
+  let lastDetail = detail
   let latestSeq = null
 
   function setMode(m) {
@@ -126,8 +158,7 @@ function build(detail) {
     // orange ring on the latest shot while live
     if (d.game.state === 'in' && lastShot && lastShot.seq !== latestSeq) {
       dots.querySelector('.latest')?.remove()
-      const ring = s('circle', { class: 'latest', cx: lastShot.shot.x, cy: lastShot.shot.y, r: 2.1, fill: 'none', stroke: 'var(--orange)', 'stroke-width': 0.5 })
-      dots.append(ring)
+      dots.append(s('circle', { class: 'latest', cx: lastShot.shot.x, cy: lastShot.shot.y, r: 2.1, fill: 'none', stroke: 'var(--orange)', 'stroke-width': 0.5 }))
       latestSeq = lastShot.seq
     }
     if (d.game.state !== 'in') dots.querySelector('.latest')?.remove()
@@ -146,10 +177,9 @@ function build(detail) {
     homePts.classList.toggle('trail', lead < 0)
     awayPts.classList.toggle('trail', lead > 0)
 
-    const hot = isCrunch(g)
-    board.classList.toggle('hot', hot)
+    board.classList.toggle('hot', isCrunch(g))
     board.classList.toggle('done', g.state === 'post')
-    const key = g.state === 'pre' ? `pre` : g.state === 'post' ? `post:${g.detail}:${g.endedAt || ""}` : `in:${g.period}:${g.clock}`
+    const key = g.state === 'pre' ? 'pre' : g.state === 'post' ? `post:${g.detail}:${g.endedAt || ''}` : `in:${g.period}:${g.clock}`
     if (mid.dataset.key === key) return
     mid.dataset.key = key
     mid.replaceChildren()
@@ -158,45 +188,62 @@ function build(detail) {
     else mid.append(h('span.period', periodLabel(g.period)), h('span.clock', g.clock))
   }
 
+  // A play row: team, bold player, what happened, when; the change in that team's own win chance.
   function playRow(d, p) {
     const team = p.side === 'home' ? d.game.home.abbr : p.side === 'away' ? d.game.away.abbr : ''
     const name = p.player && p.text.startsWith(p.player) ? p.player : p.text.split(' ')[0]
     const rest = p.text.slice(name.length).trim()
+    const own = p.side === 'away' ? -p.delta : p.delta
     return h('div.play',
       h('span.who', team),
-      h('span.what', h('b', name), ' ', rest, h('span.when', `${periodWord(p.period)} ${p.clock}`)),
-      h('span.delta.num', { class: `delta num${p.delta < 0 ? ' neg' : ''}` }, signedPct(p.delta)),
+      h('span.what', h('b', lastName(name)), ' ', rest, h('span.when', `${periodWord(p.period)} ${p.clock}`)),
+      h('span', { class: `delta num${own < 0 ? ' neg' : ''}` }, signedPct(own)),
     )
   }
 
   function renderSwings(d) {
+    const top = d.swings.slice(0, 5)
+    const key = top.map((p) => p.seq).join(',')
+    if (swingsList.dataset.key === key) return
+    swingsList.dataset.key = key
+    swingsList.replaceChildren(...top.map((p) => playRow(d, p)))
+    if (!top.length) swingsList.append(h('div.quiet', 'Nothing big yet.'))
+  }
+
+  function renderL2M(d) {
     const g = d.game
-    if (g.state === 'post') {
-      swingsTitle.textContent = 'What decided it'
-      swingsSub.textContent = 'last 2 minutes'
-      // largest swings in the last two minutes of regulation and all of OT
-      const plays = d.plays
-      const rows = []
-      for (let i = 1; i < plays.length; i++) {
-        const p = plays[i]
-        if (!p.side) continue
-        const late = p.period > 4 || (p.period === 4 && p.t >= 2880 - 120)
-        if (!late) continue
-        rows.push({ seq: p.seq, text: p.text, player: p.player, side: p.side, delta: p.wp - plays[i - 1].wp, period: p.period, clock: p.clock })
+    const live = g.state === 'in'
+    const { pins, rows } = l2mPins(d, { live })
+    const key = JSON.stringify([pins.map((p) => p.text), rows.map((r) => r.seq), g.state])
+    if (l2mPanel.dataset.key === key) return
+    l2mPanel.dataset.key = key
+
+    l2m.update({ pins })
+    l2mSub.textContent = live ? 'so far' : ''
+    l2mRows.replaceChildren(...rows.map((p) => playRow(d, p)))
+
+    calls.replaceChildren()
+    l2mNote.textContent = ''
+    if (live) {
+      if (!pins.length && !rows.length) l2mNote.textContent = 'Nothing big yet.'
+      return
+    }
+    if (d.l2m && d.l2m.length) {
+      for (const c of d.l2m) {
+        const row = h('div.call')
+        const btn = h('button', { 'aria-expanded': 'false', onclick: () => { const o = row.classList.toggle('open'); btn.setAttribute('aria-expanded', String(o)) } },
+          h('span.x', { 'aria-hidden': 'true' }, '×'),
+          h('span.what', capital(callWord(c)), c.committing ? ` on ${lastName(c.committing)}` : '', h('span.when', `${periodWord(c.period)} ${c.clock}`)),
+          h('span.cost.num', `−${Math.round(Math.abs(c.cost) * 100)}%`),
+        )
+        row.append(btn, h('div.comment', c.comment))
+        calls.append(row)
       }
-      rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
-      const top = rows.length ? rows.slice(0, 4) : d.swings.slice(0, 4)
-      swingsList.replaceChildren(...top.map((p) => playRow(d, p)))
-      if (!top.length) swingsList.append(h('div.quiet', 'No play-by-play for this game.'))
+      calls.append(h('div.source', 'Wrong calls from the NBA\'s Last Two Minute report. Cost to the team wronged.'))
+    } else if (d.l2m) {
+      l2mNote.textContent = 'The referees\' report found no wrong calls.'
     } else {
-      swingsTitle.textContent = 'Swings'
-      swingsSub.textContent = `${g.home.abbr} win chance`
-      const top = d.swings.slice(0, 5)
-      const key = top.map((p) => p.seq).join(',')
-      if (swingsList.dataset.key === key) return
-      swingsList.dataset.key = key
-      swingsList.replaceChildren(...top.map((p) => playRow(d, p)))
-      if (!top.length) swingsList.append(h('div.quiet', g.state === 'pre' ? 'Tip-off first.' : 'Nothing big yet.'))
+      l2mNote.textContent = 'No referee report for this game yet. The NBA reviews close games a day or two later.'
     }
   }
 
@@ -205,71 +252,44 @@ function build(detail) {
     if (g.state !== 'post' || after.dataset.done) return
     after.dataset.done = '1'
 
-    // who closed it
+    // who closed it: each player's win chance added in the 4th and OT, all for their own team
     const max = Math.max(0.01, ...d.closers.map((c) => Math.abs(c.wpa)))
     const closers = d.closers.slice(0, 5).map((c) =>
       h('div.closer',
-        h('span.n', c.name, h('small', c.side === 'home' ? g.home.abbr : g.away.abbr)),
+        h('span.n', lastName(c.name), h('small', c.side === 'home' ? g.home.abbr : g.away.abbr)),
         h('span.v.num', signedPct(c.wpa)),
-        h('span.bar', h('i', { class: c.side === 'away' ? 'away' : '', style: { width: `${(Math.abs(c.wpa) / max) * 100}%` } })),
+        h('span.bar', { 'aria-hidden': 'true' }, h('i', { style: { width: `${(Math.abs(c.wpa) / max) * 100}%` } })),
       ),
     )
     const closersPanel = h('div.panel',
-      h('div.panel-h', h('h2', 'Who closed it'), h('span.sub', `win chance added, 4th${(d.plays.at(-1)?.period ?? 4) > 4 ? ' + OT' : ''}`)),
+      h('div.panel-h', h('h2', 'Who closed it'), h('span.sub', `4th${(d.plays.at(-1)?.period ?? 4) > 4 ? ' + OT' : ''}`)),
       closers.length ? h('div.closers', closers) : h('div.quiet', 'No player data for this game.'),
     )
 
-    // drama
-    const dramaPanel = d.drama == null ? null : h('div.panel',
-      h('div.drama', h('h2', { style: { fontSize: '14px', fontWeight: 650 } }, 'Drama'), h('span.n.num', d.drama, h('small', '/100'))),
+    const dramaPanel = d.drama == null ? null : h('div.panel.drama-panel',
+      h('div.drama', h('h2', 'Drama'), h('span.n.num', d.drama, h('small', '/100'))),
       h('div.drama-bar', { 'aria-hidden': 'true' }, h('i', { style: { width: `${d.drama}%` } })),
     )
 
-    // last two minute report
-    let l2mPanel
-    if (d.l2m && d.l2m.length) {
-      const rows = d.l2m.map((c) => {
-        const row = h('div.call')
-        const btn = h('button', { 'aria-expanded': 'false', onclick: () => { const o = row.classList.toggle('open'); btn.setAttribute('aria-expanded', String(o)) } },
-          h('span.x', { 'aria-hidden': 'true' }, '×'),
-          h('span',
-            h('div.t', c.decision === 'IC' ? 'Wrong call' : 'Missed call', h('small', `${periodWord(c.period)} ${c.clock}`)),
-            h('div.m', `${c.call} · ${c.committing} on ${c.disadvantaged}`.replace(' · ', ' — ')),
-          ),
-          h('span.cost.num', signedPct(c.cost)),
-        )
-        row.append(btn, h('div.comment', c.comment))
-        return row
-      })
-      l2mPanel = h('div.panel',
-        h('div.panel-h', h('h2', 'Calls the NBA got wrong'), h('span.sub', `${g.home.abbr} win chance`)),
-        h('div.calls', rows),
-        h('div.source', 'From the NBA\'s Last Two Minute report.'),
-      )
-    } else if (d.l2m && !d.l2m.length) {
-      l2mPanel = h('div.panel', h('div.panel-h', h('h2', 'Calls the NBA got wrong')), h('div.quiet', 'None. The referees\' Last Two Minute report found no wrong calls.'))
-    } else {
-      l2mPanel = h('div.panel', h('div.panel-h', h('h2', 'Calls the NBA got wrong')),
-        h('div.quiet', 'No Last Two Minute report for this game. The NBA only reviews games within 3 points in the last two minutes, a day or two later.'))
-    }
-
-    after.append(closersPanel, dramaPanel, l2mPanel)
+    after.append(closersPanel, dramaPanel)
   }
 
   function update(d) {
     const g = d.game
     updateBoard(g, lastDetail?.game)
-    setPre(g.state === 'pre', g)
-    if (g.state === 'pre') { lastDetail = d; return }
-    wpTitle.textContent = `${g.home.name} win chance`
+    detail = d
+    setLayout(g.state === 'pre' ? 'pre' : g.state === 'post' ? 'post' : isLastTwo(g) ? 'late' : 'live')
+    lastDetail = d
+    if (g.state === 'pre') return
     setText(wpVal, g.wp == null ? '' : pct(g.wp))
     if (d.plays.length) chart.update(d.plays, g.state === 'post' ? g.period : Math.max(4, g.period))
-    else wpPanel.querySelector('.quiet') || wpPanel.append(h('div.quiet', 'Updates once the game tips off.'))
     drawShots(d)
-    renderSwings(d)
+    if (mode !== 'post') renderSwings(d)
+    if (mode !== 'live') renderL2M(d)
     renderAfter(d)
-    lastDetail = d
   }
 
   return { el, update }
 }
+
+const capital = (t) => t.charAt(0).toUpperCase() + t.slice(1)

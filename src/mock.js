@@ -60,6 +60,7 @@ const ROSTER = {
   ATL: ['Young', 'Johnson', 'Daniels', 'Risacher', 'Okongwu', 'Gueye'],
   TOR: ['Barnes', 'Quickley', 'Barrett', 'Ingram', 'Poeltl', 'Dick'],
   POR: ['Sharpe', 'Simons', 'Avdija', 'Ayton', 'Grant', 'Camara'],
+  DET: ['Cunningham', 'Ivey', 'Duren', 'Harris', 'Thompson', 'Beasley'],
 }
 const player = (abbr, r) => {
   const list = ROSTER[abbr] || ['Starter', 'Guard', 'Wing', 'Big', 'Sixth man', 'Reserve']
@@ -129,7 +130,7 @@ function generatePlays(home, away, seed, { periods = 4 } = {}) {
         const made = r() < 0.78, made2 = r() < 0.78
         const pts = (made ? 1 : 0) + (made2 ? 1 : 0)
         if (side === 'home') hs += pts; else as += pts
-        push(p, secLeft, `${pl} free throws ${pts} of 2`, side, pts, null, pl)
+        push(p, secLeft, `${pl} ${made2 ? 'makes' : 'misses'} free throw`, side, pts, null, pl)
         side = side === 'home' ? 'away' : 'home'
         continue
       }
@@ -183,7 +184,7 @@ function swingsOf(plays, { from = 0 } = {}) {
     const p = plays[i]
     if (p.t < from || !p.side) continue
     const delta = p.wp - plays[i - 1].wp
-    out.push({ seq: p.seq, text: p.text, side: p.side, delta: +delta.toFixed(3), period: p.period, clock: p.clock })
+    out.push({ seq: p.seq, text: p.text, player: p.player, side: p.side, delta: +delta.toFixed(3), period: p.period, clock: p.clock })
   }
   return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 6)
 }
@@ -249,13 +250,27 @@ const showcase = (() => {
   const live = closeGame('PHX', 'GSW', 4101, { maxMargin: 4, closeAt: LIVE_T0 })
   const final = closeGame('MIA', 'BOS', 9077, { maxMargin: 3, homeWins: true })
   const early = generatePlays('DEN', 'DAL', 3141)
-  return { today, live, final, early }
+  let final2 = null
+  for (let i = 0; i < 3000 && !final2; i++) { const pl = generatePlays('CLE', 'DET', 7000 + i); if (pl.at(-1).period === 5) final2 = pl }
+  final2 ||= generatePlays('CLE', 'DET', 7000)
+  return { today, live, final, early, final2 }
 })()
+
+// Test hooks (set on window before load): __MOCK_T0 = seconds into the live game to start from,
+// __MOCK_SPEED = game seconds per real second, __MOCK_PRE_LIVE_AFTER = ms after which pre1 tips off.
+const hook = (k, d) => (typeof globalThis !== 'undefined' && globalThis[k] != null ? globalThis[k] : d)
+const elapsedSec = () => Math.floor(((Date.now() - SESSION_START) / 1000) * hook('__MOCK_SPEED', 1))
 
 function liveCut() {
   // the live game advances in real time from 3:10 in the 4th
-  const elapsed = Math.floor((Date.now() - SESSION_START) / 1000)
-  return LIVE_T0 + elapsed
+  return hook('__MOCK_T0', LIVE_T0) + elapsedSec()
+}
+
+// pre1 can tip off during the session, to exercise the pre → live → ended path
+function pre1State() {
+  const after = hook('__MOCK_PRE_LIVE_AFTER', null)
+  if (after == null || Date.now() - SESSION_START < after) return null
+  return stateFromPlays(showcase.early, Math.max(1, elapsedSec() - Math.floor((after / 1000) * hook('__MOCK_SPEED', 1))))
 }
 
 function stateFromPlays(plays, tNow) {
@@ -273,6 +288,7 @@ function showcaseGames() {
   const l = stateFromPlays(showcase.live, liveCut())
   const e = stateFromPlays(showcase.early, 1680) // 3rd quarter, 8:00 left
   const f = showcase.final[showcase.final.length - 1]
+  const f2 = showcase.final2[showcase.final2.length - 1]
   const L2M_TOTAL = 2880
   return [
     {
@@ -289,15 +305,29 @@ function showcaseGames() {
     {
       id: 'final1', start: isoAt(d, 17, 0), state: 'post', period: 4, clock: '0:00', detail: 'Final',
       home: team('MIA', f.homeScore, '2-2'), away: team('BOS', f.awayScore, '3-1'),
-      closeFinish: 0.58, wp: f.homeScore > f.awayScore ? 1 : 0,
+      closeFinish: 0.58, wp: f.homeScore > f.awayScore ? 1 : 0, endedAt: isoAt(d, 19, 24),
     },
     {
-      id: 'pre1', start: isoAt(d, 20, 30), state: 'pre', period: 0, clock: '', detail: '',
-      home: team('LAL', null, '2-2'), away: team('MIN', null, '3-1'), closeFinish: 0.47, wp: null,
+      id: 'final2', start: isoAt(d, 16, 0), state: 'post', period: f2.period, clock: '0:00', detail: f2.period > 4 ? 'Final/OT' : 'Final',
+      home: team('CLE', f2.homeScore, '3-1'), away: team('DET', f2.awayScore, '1-3'),
+      closeFinish: 0.4, wp: f2.homeScore > f2.awayScore ? 1 : 0, endedAt: isoAt(d, 18, 41),
     },
+    (() => {
+      const p1 = pre1State()
+      if (!p1) return {
+        id: 'pre1', start: isoAt(d, 20, 30), state: 'pre', period: 0, clock: '', detail: '',
+        home: team('LAL', null, '2-2'), away: team('MIN', null, '3-1'), closeFinish: 0.47, wp: 0.44,
+      }
+      return {
+        id: 'pre1', start: isoAt(d, 20, 30), state: p1.done ? 'post' : 'in', period: p1.period, clock: p1.clock,
+        detail: p1.done ? 'Final' : `${['1st', '2nd', '3rd', '4th'][Math.min(p1.period, 4) - 1]} ${p1.clock}`,
+        home: team('LAL', p1.last.homeScore, '2-2'), away: team('MIN', p1.last.awayScore, '3-1'), closeFinish: 0.47, wp: p1.last.wp,
+        endedAt: p1.done ? new Date().toISOString() : undefined,
+      }
+    })(),
     {
       id: 'pre2', start: isoAt(d, 21, 0), state: 'pre', period: 0, clock: '', detail: '',
-      home: team('OKC', null, '4-0'), away: team('NYK', null, '2-2'), closeFinish: 0.33, wp: null,
+      home: team('OKC', null, '4-0'), away: team('NYK', null, '2-2'), closeFinish: 0.33, wp: 0.68,
     },
   ].sort((a, b) => (a.state === 'in' ? 0 : a.state === 'pre' ? 1 : 2) - (b.state === 'in' ? 0 : b.state === 'pre' ? 1 : 2))
 }
@@ -309,7 +339,7 @@ function scheduledGame(g, dateStr) {
     return {
       id: g.id, start: g.start, state: 'pre', period: 0, clock: '', detail: '',
       home: team(g.home, null, recordFor(g.home, dateStr)), away: team(g.away, null, recordFor(g.away, dateStr)),
-      closeFinish: +(0.2 + rng(g.seed)() * 0.6).toFixed(2), wp: null,
+      closeFinish: +(0.2 + rng(g.seed)() * 0.6).toFixed(2), wp: +(0.3 + rng(g.seed + 2)() * 0.4).toFixed(2),
     }
   }
   const plays = generatePlays(g.home, g.away, g.seed)
@@ -317,7 +347,7 @@ function scheduledGame(g, dateStr) {
   return {
     id: g.id, start: g.start, state: 'post', period: f.period, clock: '0:00', detail: f.period > 4 ? 'Final/OT' : 'Final',
     home: team(g.home, f.homeScore, recordFor(g.home, dateStr)), away: team(g.away, f.awayScore, recordFor(g.away, dateStr)),
-    closeFinish: +(0.2 + rng(g.seed)() * 0.6).toFixed(2), wp: f.homeScore > f.awayScore ? 1 : 0,
+    closeFinish: +(0.2 + rng(g.seed)() * 0.6).toFixed(2), wp: f.homeScore > f.awayScore ? 1 : 0, endedAt: isoAt(dateStr, 21, 40),
   }
 }
 
@@ -381,7 +411,14 @@ export async function getGame(id) {
     }
   }
   if (id === 'pre1' || id === 'pre2') {
-    return { game: showcaseGames().find((g) => g.id === id), plays: [], swings: [], closers: [], drama: null, l2m: null }
+    const p1 = id === 'pre1' ? pre1State() : null
+    const game = showcaseGames().find((g) => g.id === id)
+    if (!p1) return { game, plays: [], swings: [], closers: [], drama: null, l2m: null }
+    return { game, plays: p1.plays, swings: swingsOf(p1.plays), closers: closersOf(p1.plays), drama: p1.done ? dramaOf(p1.plays) : null, l2m: null }
+  }
+  if (id === 'final2') {
+    const plays = showcase.final2
+    return { game: showcaseGames().find((g) => g.id === id), plays, swings: swingsOf(plays), closers: closersOf(plays), drama: dramaOf(plays), l2m: null }
   }
   if (id === 'early1') {
     const s = stateFromPlays(showcase.early, 1680)

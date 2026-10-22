@@ -3,7 +3,7 @@ import { gameCard } from '../ui/card.js'
 import { fullCourt } from '../ui/court.js'
 import { loader } from '../ui/loader.js'
 import { getDay, watch } from '../data.js'
-import { todayStr, tipTime, isCrunch } from '../util.js'
+import { todayStr, tipTime, isCrunch, followDay, dayInterval, remount } from '../util.js'
 
 const wordmark = () => h('img.wordmark', { src: `${import.meta.env.BASE_URL}wordmark.png`, alt: '4TH', width: 1215, height: 413 })
 
@@ -40,5 +40,7 @@ export function mountLive({ view, setDock }) {
     for (const [id, c] of cards) if (!seen.has(id)) { c.el.remove(); cards.delete(id) }
   }
 
-  return watch(() => getDay(today), render, { every: 10000 })
+  const stop = watch(() => getDay(today), render, { every: (games) => (games ? dayInterval(games) : 10000) })
+  const stopDay = followDay(remount)
+  return () => { stop(); stopDay() }
 }

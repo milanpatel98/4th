@@ -4,13 +4,14 @@ import { fullCourt } from '../ui/court.js'
 import { icons } from '../ui/icons.js'
 import { loader } from '../ui/loader.js'
 import { getDay, watch } from '../data.js'
-import { todayStr, shiftDate, isValidDate, dayTitle, isCrunch, shortDate } from '../util.js'
+import { todayStr, shiftDate, isValidDate, dayTitle, isCrunch, shortDate, followDay, dayInterval, remount } from '../util.js'
 
 const wordmark = () => h('img.wordmark', { src: `${import.meta.env.BASE_URL}wordmark.png`, alt: '4TH', width: 1215, height: 413 })
 
 export function mountTonight({ view, setDock }, { date, open } = {}) {
   const today = todayStr()
   const day = date && isValidDate(date) ? date : today
+  const isToday = day === today
   setDock('tonight')
 
   const title = h('h1.h1', dayTitle(day))
@@ -69,14 +70,17 @@ export function mountTonight({ view, setDock }, { date, open } = {}) {
     for (const [id, c] of cards) if (!seen.has(id)) { c.el.remove(); cards.delete(id) }
   }
 
+  // Today keeps polling (slowly when nothing is on) so tomorrow's slate appears on its own; past days stop when done.
   const stop = watch(() => getDay(day), render, {
-    every: 10000,
-    shouldContinue: (games) => games.some((g) => g.state === 'in') || games.some((g) => g.state === 'pre' && day === today),
+    every: (games) => (games ? dayInterval(games) : 10000),
+    shouldContinue: (games) => isToday || games.some((g) => g.state !== 'post'),
     onError: () => {
-      if (cards.size) return
+      if (cards.size || !list.querySelector('.loader')) return
       clear(list)
       list.append(h('div.empty', h('span', 'Could not load games.'), h('button.show-more', { onclick: () => location.reload() }, 'Try again')))
     },
   })
-  return stop
+  // "#/" means today: follow the calendar overnight
+  const stopDay = !date ? followDay(remount) : () => {}
+  return () => { stop(); stopDay() }
 }

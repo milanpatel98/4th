@@ -148,6 +148,50 @@ def priced(gid, rep):
     return g, calls
 
 
+def clutch(games, top=10):
+    """Wins added in 4th quarters and OT, per player: each play's own change in win chance
+    (the clock running is credited to no one), rebounds centred on their average. Same as model/final.py."""
+    reb = M.get("rebound_mean", {})
+    total, played, team = {}, {}, {}
+    for gid, pbp in games:
+        if not pbp:
+            continue
+        acts = sorted(pbp["game"]["actions"], key=lambda a: a.get("orderNumber", a["actionNumber"]))
+        tri = {}
+        for a in acts:
+            if a.get("teamTricode") and a.get("teamId"):
+                tri[a["teamId"]] = a["teamTricode"]
+        # home team: the side whose made shots raise scoreHome
+        home_id = away_id = None
+        prev_h = prev_a = 0
+        for a in acts:
+            h_, a_ = int(a.get("scoreHome") or 0), int(a.get("scoreAway") or 0)
+            if a.get("teamId") and (h_ > prev_h) != (a_ > prev_a):
+                if h_ > prev_h: home_id = a["teamId"]
+                else: away_id = a["teamId"]
+            prev_h, prev_a = h_, a_
+            if home_id and away_id: break
+        if not (home_id and away_id):
+            continue
+        elo_diff = ELO.get(tri.get(home_id), 1500) - ELO.get(tri.get(away_id), 1500)
+        st = states(acts, home_id, away_id)
+        prev_m, prev_b = 0, 0
+        for a, (p, sec, m, b) in zip(acts, st):
+            name, tid = a.get("playerNameI"), a.get("teamId")
+            if p >= 4 and name and tid in (home_id, away_id) and a.get("personId"):
+                sec_reg = (4 - p) * 720 + sec if p <= 4 else sec
+                eff = wp(m, b, sec_reg, p > 4, elo_diff) - wp(prev_m, prev_b, sec_reg, p > 4, elo_diff)
+                eff *= 1 if tid == home_id else -1
+                if a.get("actionType") == "rebound":
+                    eff -= reb.get(a.get("subType"), 0)
+                total[name] = total.get(name, 0) + eff
+                played.setdefault(name, set()).add(gid)
+                team[name] = tri.get(tid, "")
+            prev_m, prev_b = m, b
+    rows = sorted(total.items(), key=lambda kv: kv[1], reverse=True)[:top]
+    return [{"name": n, "team": team[n], "wpa": round(v, 3), "games": len(played[n])} for n, v in rows]
+
+
 def season_ids(season_start_year):
     return [f"002{str(season_start_year)[2:]}{n:05d}" for n in range(1, 1231)]
 
@@ -166,7 +210,8 @@ def main():
     l2m = json.loads((DATA / "l2m.json").read_text())
     season = json.loads((DATA / "season.json").read_text())
     last = TODAY.year - 1 if TODAY.month >= 9 else TODAY.year - 2          # 2025 -> the 2025-26 season
-    ids = season_ids(last) + current_finals()
+    current_ids = current_finals()
+    ids = season_ids(last) + current_ids
     ids = list(dict.fromkeys(ids))
 
     def one(gid):
@@ -183,7 +228,9 @@ def main():
     with ThreadPoolExecutor(8) as ex:
         results = [r for r in ex.map(one, ids) if r]
 
-    flipped, reports = [], 0
+    cur = int(current_ids[0][3:5]) + 2000 if current_ids else last + 1
+    prefix = {last: f"002{str(last)[2:]}", cur: f"002{str(cur)[2:]}"}
+    flipped, reports = {last: [], cur: []}, 0
     for gid, g, calls in results:
         reports += 1
         if not calls:
@@ -192,22 +239,40 @@ def main():
         home, away = g["Home_team_abbr"], g["Away_team_abbr"]
         hs, as_ = g["HomeTeamScore"], g["VisitorTeamScore"]
         l2m[f"{date}-{away}-{home}"] = [{k: v for k, v in c.items() if k != "pts"} for c in calls]
-        if gid.startswith(f"002{str(last)[2:]}") and hs != as_:
+        yr = next((y for y, pre in prefix.items() if gid.startswith(pre)), None)
+        if yr is not None and hs != as_:
             loser = away if hs > as_ else home
             lost = sum(c["pts"] for c in calls if c["team"] == loser)
             if lost >= abs(hs - as_):
                 big = max((c for c in calls if c["team"] == loser), key=lambda c: abs(c["cost"]))
-                flipped.append({"gameDate": date, "home": home, "away": away, "homeScore": hs, "awayScore": as_,
-                                "call": big["call"], "decision": big["decision"], "clock": big["clock"], "cost": big["cost"],
-                                "winner": home if hs > as_ else away, "wronged": loser, "lostBy": abs(hs - as_), "pointsLost": round(lost, 1)})
-    label = f"{last}-{str(last + 1)[2:]}"
-    if any(gid.startswith(f"002{str(last)[2:]}") for gid, _, _ in results):
-        flipped.sort(key=lambda x: x["gameDate"])
-        season["season"] = label
-        season["flipped"] = {"count": len(flipped), "games": flipped}
+                flipped[yr].append({"gameDate": date, "home": home, "away": away, "homeScore": hs, "awayScore": as_,
+                                    "call": big["call"], "decision": big["decision"], "clock": big["clock"], "cost": big["cost"],
+                                    "winner": home if hs > as_ else away, "wronged": loser, "lostBy": abs(hs - as_), "pointsLost": round(lost, 1)})
+    for v in flipped.values():
+        v.sort(key=lambda x: x["gameDate"])
+
+    def label(y):
+        return f"{y}-{str(y + 1)[2:]}"
+
+    # this season's clutch players, from every finished game's play-by-play
+    with ThreadPoolExecutor(8) as ex:
+        clutch_cur = clutch(list(ex.map(lambda gid: (gid, get(f"https://cdn.nba.com/static/json/liveData/playbyplay/playbyplay_{gid}.json", f"pbp/{gid}.json")), current_ids)))
+
+    old = {x["season"]: x for x in season.get("seasons", [])}
+    last_entry = old.get(label(last)) or {"season": label(last), "flipped": season["flipped"], "clutch": season["clutch"], "games": 1230}
+    if any(gid.startswith(prefix[last]) for gid, _, _ in results):
+        last_entry["flipped"] = {"count": len(flipped[last]), "games": flipped[last]}
+    cur_entry = {"season": label(cur), "flipped": {"count": len(flipped[cur]), "games": flipped[cur]}, "clutch": clutch_cur, "games": len(current_ids)}
+    season = {
+        # the top level is what the Season screen shows first: this season once it is under way
+        **(cur_entry if current_ids else last_entry),
+        "clutchSeason": label(cur) if current_ids else label(last),
+        "seasons": [e for e in (cur_entry if current_ids else None, last_entry) if e],
+    }
     (DATA / "l2m.json").write_text(json.dumps(l2m, separators=(",", ":")))
     (DATA / "season.json").write_text(json.dumps(season, separators=(",", ":")))
-    status = {"run": TODAY.isoformat(), "games_checked": len(ids), "reports": reports, "flipped": len(flipped), **STATS}
+    status = {"run": TODAY.isoformat(), "games_checked": len(ids), "current_games": len(current_ids), "reports": reports,
+              "flipped": {label(y): len(v) for y, v in flipped.items()}, "clutch_players": len(clutch_cur), **STATS}
     (DATA / "refs-status.json").write_text(json.dumps(status))
     print(status)
 
