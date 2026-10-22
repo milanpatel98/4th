@@ -3,3 +3,4 @@ dist
 /data/
 /shots/
 /.cache/
+__pycache__/
