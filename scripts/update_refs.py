@@ -19,20 +19,27 @@ M = json.loads((DATA / "model.json").read_text())
 ELO = {**M["elo"]["ratings"], **(json.loads((DATA / "elo.json").read_text())["ratings"] if (DATA / "elo.json").exists() else {})}
 UA = {"User-Agent": "Mozilla/5.0 (4TH fan project)", "Referer": "https://www.nba.com/", "Accept": "application/json"}
 TODAY = dt.date.today()
+STATS = {"missing": 0, "errors": 0}
 
 
 def get(url, path, max_age_days=None):
     """Download JSON with a file cache. Missing reports are cached as null (rechecked while games are recent)."""
     p = CACHE / path
-    if p.exists() and (max_age_days is None or (TODAY - dt.date.fromtimestamp(p.stat().st_mtime)).days < max_age_days):
-        return json.loads(p.read_text())
+    if p.exists():
+        cached = json.loads(p.read_text())
+        age = (TODAY - dt.date.fromtimestamp(p.stat().st_mtime)).days
+        # a missing report is rechecked after a day; a found one is kept unless it may still be updated
+        if (cached is None and age < 1) or (cached is not None and (max_age_days is None or age < max_age_days)):
+            return cached
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=30) as r:
             data = json.load(r)
     except urllib.error.HTTPError as e:
         if e.code in (403, 404):
             data = None
+            STATS["missing"] += 1
         else:
+            STATS["errors"] += 1
             raise
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(data))
@@ -200,7 +207,9 @@ def main():
         season["flipped"] = {"count": len(flipped), "games": flipped}
     (DATA / "l2m.json").write_text(json.dumps(l2m, separators=(",", ":")))
     (DATA / "season.json").write_text(json.dumps(season, separators=(",", ":")))
-    print(f"{reports} reports read, {len(flipped)} games flipped in {label}, {len(l2m)} games with wrong calls in total")
+    status = {"run": TODAY.isoformat(), "games_checked": len(ids), "reports": reports, "flipped": len(flipped), **STATS}
+    (DATA / "refs-status.json").write_text(json.dumps(status))
+    print(status)
 
 
 if __name__ == "__main__":
