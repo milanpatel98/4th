@@ -7,8 +7,8 @@ import { fullCourt } from './court.js'
 // Units are feet (same as the court); text is sized in feet too so it scales with the court.
 
 const FONT = 3.1            // label font size, feet
-const CHAR = 1.75           // approx width of one character at that size
-const PAD = 1.2
+const CHAR = 2.05           // width of one bold character at that size (generous, so labels never touch)
+const PAD = 1.8
 const X_MIN = -46, X_MAX = 46, Y_MIN = -24, Y_MAX = 24
 
 const lastName = (name = '') => name.split(' ').pop()
