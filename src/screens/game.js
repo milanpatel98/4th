@@ -159,10 +159,11 @@ function build(detail) {
 
   function playRow(d, p) {
     const team = p.side === 'home' ? d.game.home.abbr : p.side === 'away' ? d.game.away.abbr : ''
-    const [name, ...rest] = p.text.split(' ')
+    const name = p.player && p.text.startsWith(p.player) ? p.player : p.text.split(' ')[0]
+    const rest = p.text.slice(name.length).trim()
     return h('div.play',
       h('span.who', team),
-      h('span.what', h('b', name), ' ', rest.join(' '), h('span.when', `${periodWord(p.period)} ${p.clock}`)),
+      h('span.what', h('b', name), ' ', rest, h('span.when', `${periodWord(p.period)} ${p.clock}`)),
       h('span.delta.num', { class: `delta num${p.delta < 0 ? ' neg' : ''}` }, signedPct(p.delta)),
     )
   }
@@ -180,7 +181,7 @@ function build(detail) {
         if (!p.side) continue
         const late = p.period > 4 || (p.period === 4 && p.t >= 2880 - 120)
         if (!late) continue
-        rows.push({ seq: p.seq, text: p.text, side: p.side, delta: p.wp - plays[i - 1].wp, period: p.period, clock: p.clock })
+        rows.push({ seq: p.seq, text: p.text, player: p.player, side: p.side, delta: p.wp - plays[i - 1].wp, period: p.period, clock: p.clock })
       }
       rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
       const top = rows.length ? rows.slice(0, 4) : d.swings.slice(0, 4)

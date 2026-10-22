@@ -9,7 +9,7 @@ export function logo(team, size = '', { text = true } = {}) {
     wrap.append(h('span.fb', text && team.abbr))
     return wrap
   }
-  const img = h('img', { src: url, alt: team.name, loading: 'lazy', decoding: 'async', width: 48, height: 48 })
+  const img = h('img', { src: url, alt: team.name, decoding: 'async', width: 48, height: 48 })
   img.addEventListener('error', () => {
     img.remove()
     wrap.append(h('span.fb', text && team.abbr))

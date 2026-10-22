@@ -107,6 +107,22 @@ const FT = /Free Throw/i
 const TURNOVER = /Turnover|Traveling|Shot Clock|Double Dribble|Backcourt|Palming|Offensive Goaltending|Discontinued Dribble|Carrying/i
 const lastName = (full = '') => full.split(' ').slice(1).join(' ') || full
 
+// "Nickeil Alexander-Walker makes 27-foot three point step back jumpshot (Jalen Johnson assists)" -> "makes 3PT"
+function shortText(raw, type) {
+  const t = raw.replace(/\(.*?\)/g, '').toLowerCase()
+  const verb = /\bmakes\b/.test(t) ? 'makes' : /\bmisses\b/.test(t) ? 'misses' : null
+  if (verb) {
+    const kind = /free throw/.test(t) ? 'free throw' : /three point/.test(t) ? '3PT' : /alley oop/.test(t) ? 'alley-oop'
+      : /dunk/.test(t) ? 'dunk' : /layup|finger roll/.test(t) ? 'layup' : /hook/.test(t) ? 'hook' : /tip/.test(t) ? 'tip-in' : 'jumper'
+    return `${verb} ${kind}`
+  }
+  if (/rebound/i.test(type)) return 'rebound'
+  if (TURNOVER.test(type) || /turnover/.test(t)) return /steal/.test(raw.toLowerCase()) ? 'turnover, stolen' : 'turnover'
+  if (/foul/i.test(type)) return /shooting/i.test(type) ? 'shooting foul' : 'foul'
+  if (/timeout/i.test(type)) return 'timeout'
+  return raw.replace(/\(.*?\)/g, '').replace(/\s+/g, ' ').trim()
+}
+
 export async function getGame(id) {
   const [s, m, elo] = await Promise.all([json(`${API}/summary?event=${id}`, { cache: 'no-store' }), loadModel(), ratings()])
   const comp = s.header.competitions[0]
@@ -159,12 +175,9 @@ export async function getGame(id) {
 
     const pid = p.participants?.[0]?.athlete?.id
     const full = names[pid] || ''
-    let text = (p.text || type).replace(/\n/g, ' ')
-    for (const a of p.participants || []) {
-      const n = names[a.athlete?.id]
-      if (n) text = text.replace(n, lastName(n))
-    }
     const player = full ? lastName(full) : null
+    const raw = (p.text || type).replace(/\n/g, ' ')
+    const text = player ? `${player} ${shortText(raw, type)}` : shortText(raw, type)
 
     // the play's own effect on win chance, for "who closed it" (clock running down is credited to no one)
     if (period >= 4 && player && sgn) {
@@ -189,7 +202,7 @@ export async function getGame(id) {
   for (let i = 1; i < plays.length; i++) {
     const p = plays[i]
     if (!p.side) continue
-    swings.push({ seq: p.seq, text: p.text, side: p.side, delta: p.wp - plays[i - 1].wp, period: p.period, clock: p.clock })
+    swings.push({ seq: p.seq, text: p.text, player: p.player, side: p.side, delta: p.wp - plays[i - 1].wp, period: p.period, clock: p.clock })
   }
   swings.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
 

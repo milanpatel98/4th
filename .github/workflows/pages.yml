@@ -26,6 +26,13 @@ jobs:
           python-version: "3.12"
       - name: Update team ratings
         run: python scripts/update_elo.py || echo "ESPN unreachable; using shipped ratings"
+      - uses: actions/cache@v4
+        with:
+          path: .cache
+          key: refs-${{ github.run_id }}
+          restore-keys: refs-
+      - name: Update referee reports
+        run: python scripts/update_refs.py || echo "NBA reports unreachable; using shipped reports"
       - uses: actions/setup-node@v4
         with:
           node-version: 20
