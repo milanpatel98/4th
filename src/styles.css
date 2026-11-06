@@ -299,6 +299,16 @@ button:focus:not(:focus-visible) { outline: none; }
 .rank.first .bar i { background: var(--orange); }
 
 .foot { margin-top: 36px; display: grid; gap: 4px; font-size: 12px; color: var(--ink-3); line-height: 1.5; }
+.foot-legal { display: flex; align-items: center; flex-wrap: wrap; white-space: pre; }
+.fourth-nh .nh-mark { height: 11px; color: var(--ink); }
+.fourth-nh .nh-name {
+  padding-bottom: 2px;
+  background: linear-gradient(var(--orange), var(--orange)) left bottom / 0% 2px no-repeat;
+  border-radius: 1px;
+  transition: background-size 0.45s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease;
+}
+.fourth-nh:hover .nh-name, .fourth-nh:focus-visible .nh-name { background-size: 100% 2px; color: var(--ink); }
+.fourth-nh:focus-visible { outline: none; }
 
 /* ---------- dock ---------- */
 .dock {

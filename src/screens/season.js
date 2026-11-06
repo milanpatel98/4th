@@ -1,6 +1,7 @@
 import { h, signedPct } from '../ui/dom.js'
 import { logo } from '../ui/logo.js'
 import { loader } from '../ui/loader.js'
+import { neuralHorn } from '../ui/neuralHorn.js'
 import { getSeason } from '../data.js'
 import { nbaId, teamName } from '../teams.js'
 import { shortDate, todayStr } from '../util.js'
@@ -87,7 +88,7 @@ function render(season) {
   const foot = h('footer.foot',
     h('span', 'Wrong calls come from the NBA\'s own Last Two Minute reports.'),
     h('span', 'Unofficial fan project. Not affiliated with the NBA.'),
-    h('span', '© 2026 Milan Patel · MIT License'),
+    h('span.foot-legal', neuralHorn('fourth-nh'), h('span', ' · MIT License')),
   )
 
   return h('div', h('div.season-grid', flippedSection, clutchSection), foot)
